@@ -38,6 +38,13 @@ This section contains the exploratory data analysis functions for the dashboard.
 """
 
 # Upload the data
+"""_Note_
+For unzipping the covid_df file you can use the following code:
+```python
+import zipfile
+with zipfile.ZipFile('Clean_Data/Clean_COVID19MEXICO2024.zip', 'r') as zip_ref:
+    zip_ref.extractall('Clean_Data/')
+"""
 covid_df = pd.read_csv('Clean_Data/Clean_COVID19MEXICO2024.csv', 
                        parse_dates=['FECHA_ACTUALIZACION', 'FECHA_INGRESO', 'FECHA_SINTOMAS', 'FECHA_DEF'])
 febriles_df = pd.read_csv('Clean_Data/Clean_Febriles.csv', 
