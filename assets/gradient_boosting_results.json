@@ -1,0 +1,63 @@
+{
+    "accuracy": 0.908933367992375,
+    "classification_report": "              precision    recall  f1-score   support\n\n    Positive       0.00      0.00      0.00      3120\n    Negative       0.00      0.00      0.00      6364\n     Invalid       0.00      0.00      0.00     12257\n   Suspected       0.00      0.00      0.00       297\n       Other       0.91      1.00      0.95    220323\n\n    accuracy                           0.91    242361\n   macro avg       0.18      0.20      0.19    242361\nweighted avg       0.83      0.91      0.87    242361\n",
+    "confusion_matrix": [
+        [
+            0,
+            0,
+            0,
+            0,
+            3120
+        ],
+        [
+            1,
+            0,
+            0,
+            0,
+            6363
+        ],
+        [
+            0,
+            0,
+            0,
+            2,
+            12255
+        ],
+        [
+            0,
+            0,
+            0,
+            0,
+            297
+        ],
+        [
+            10,
+            4,
+            5,
+            14,
+            220290
+        ]
+    ],
+    "feature_importance": [
+        {
+            "Feature": "FECHA_SIGN_SINTOMAS",
+            "Importance": 0.8304714594070188
+        },
+        {
+            "Feature": "EDAD_ANOS",
+            "Importance": 0.15098608188220183
+        },
+        {
+            "Feature": "HIPERTENSION",
+            "Importance": 0.007402035940804537
+        },
+        {
+            "Feature": "DIABETES",
+            "Importance": 0.006908745917681052
+        },
+        {
+            "Feature": "HEMORRAGICOS",
+            "Importance": 0.004231676852293762
+        }
+    ]
+}
