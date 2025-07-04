@@ -16,3 +16,4 @@ scipy==1.13.1
 scikit-learn==1.5.1
 statsmodels==0.14.0
 tslearn==0.6.4
+gunicorn==21.2.0
