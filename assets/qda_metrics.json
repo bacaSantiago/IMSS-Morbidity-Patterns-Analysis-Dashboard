@@ -1,0 +1,36 @@
+{
+  "accuracy": 0.9506851349845891,
+  "classification_report": "              precision    recall  f1-score   support\n\n       Alive       0.02      0.22      0.03       844\n    Deceased       1.00      0.95      0.97    241517\n\n    accuracy                           0.95    242361\n   macro avg       0.51      0.59      0.50    242361\nweighted avg       0.99      0.95      0.97    242361\n",
+  "confusion_matrix": [
+    [
+      187,
+      657
+    ],
+    [
+      11295,
+      230222
+    ]
+  ],
+  "feature_importance": [
+    {
+      "Feature": "EDAD_ANOS",
+      "Importance": 12.127273069046389
+    },
+    {
+      "Feature": "DIABETES",
+      "Importance": 0.13135214722037336
+    },
+    {
+      "Feature": "HIPERTENSION",
+      "Importance": 0.09497754380390289
+    },
+    {
+      "Feature": "INMUNOSUPR",
+      "Importance": 0.016899448144769957
+    },
+    {
+      "Feature": "EMBARAZO",
+      "Importance": 0.012726849983551558
+    }
+  ]
+}
