@@ -1779,30 +1779,34 @@ app.layout = dbc.Container(
                     [
                         html.P(
                             "Sources of Information:",
-                            style={"fontWeight": "bold", "fontSize": "16px", "marginBottom": "5px"}
+                            style={"fontWeight": "bold", "fontSize": "16px", "marginBottom": "5px", "textAlign": "center"}
                         ),
                         html.P(
                             [
                                 "1. Dirección General de Epidemiología: ",
                                 html.A("Anuarios Estadísticos de Morbilidad 1984-2023", href="https://epidemiologia.salud.gob.mx/anuario/html/morbilidad_grupo.html", target="_blank"),
                             ],
-                            style={"fontSize": "14px", "marginBottom": "10px"}
+                            style={"fontSize": "14px", "marginBottom": "10px", "textAlign": "left", "marginLeft": "170px", "maxWidth": "1000px"}
                         ),
                         html.P(
                             [
                                 "2. Gobierno de México: ",
                                 html.A("Datos Abiertos", href="https://www.gob.mx/salud/documentos/datos-abiertos-152127", target="_blank"),
                             ],
-                            style={"fontSize": "14px", "marginBottom": "10px"}
+                            style={"fontSize": "14px", "marginBottom": "10px", "textAlign": "left", "marginLeft": "170px", "maxWidth": "1000px"}
                         ),
                         html.P(
                             "Data collected under sentinel surveillance methods as recommended by WHO, ensuring sample representativity through 475 USMER units across Mexico.",
-                            style={"fontSize": "14px", "marginBottom": "10px"}
+                            style={"fontSize": "14px", "marginBottom": "10px", "textAlign": "left", "marginLeft": "140px", "maxWidth": "1000px"}
                         ),
                         html.P(
                             "Data is provided under the regulations of the Open Data Decree published in the Official Gazette of the Federation on February 20, 2015.",
-                            style={"fontSize": "14px"}
+                            style={"fontSize": "14px", "textAlign": "left", "marginLeft": "140px", "maxWidth": "1000px"}
                         ),
+                        html.P(
+                            "© 2025 IMSS Morbidity Patterns Analysis | by: Santiago Baca",
+                            style={"fontWeight": "bold", "fontSize": "14px", "marginTop": "40px", "textAlign": "center"}
+                        )
                     ],
                     style={"textAlign": "center", "marginTop": "20px"}
                 ),
