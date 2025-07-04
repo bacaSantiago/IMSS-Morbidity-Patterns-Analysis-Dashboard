@@ -1,6 +1,8 @@
 
 # IMSS Morbidity Analysis Dashboard
 
+> 🌐 Live Dashboard: [https://topological-analysis-of-airbnb-price.onrender.com/](https://topological-analysis-of-airbnb-price.onrender.com/)
+
 ---
 
 ## Overview
@@ -16,56 +18,53 @@ The dashboard integrates interactive visualizations, statistical analysis, and p
 ### 1. **Exploratory Data Analysis (EDA)**
 
 - **COVID-19 Dataset:**
-    - Age and gender distributions.
-    - Temporal trends in COVID-19 case classifications.
-    - Geospatial analysis of cases by state.
-    - Heatmaps showcasing comorbidity relationships.
-    - Analysis of symptoms-to-admission intervals.
+  - Age and gender distributions.
+  - Temporal trends in COVID-19 case classifications.
+  - Geospatial analysis of cases by state.
+  - Heatmaps showcasing comorbidity relationships.
+  - Analysis of symptoms-to-admission intervals.
 - **Dengue Dataset:**
-    - Gender-wise age distributions.
-    - Trends in dengue cases over time.
-    - Proportions of hemorrhagic vs. non-hemorrhagic dengue cases.
-    - Comorbidity co-occurrence heatmaps.
+  - Gender-wise age distributions.
+  - Trends in dengue cases over time.
+  - Proportions of hemorrhagic vs. non-hemorrhagic dengue cases.
+  - Comorbidity co-occurrence heatmaps.
 - **Febrile Diseases Dataset:**
-    - Parallel categories visualization of complications, vaccination, and mortality.
-    - Geospatial distribution of cases.
+  - Parallel categories visualization of complications, vaccination, and mortality.
+  - Geospatial distribution of cases.
 - **Morbidity Dataset:**
-    - Temporal trends in the top 10 diseases.
-    - Treemap analysis of diseases by state.
-    - Geospatial heatmaps of disease prevalence.
+  - Temporal trends in the top 10 diseases.
+  - Treemap analysis of diseases by state.
+  - Geospatial heatmaps of disease prevalence.
 
 ### 2. **Statistical Analysis**
 
 - **ANOVA (Analysis of Variance):**
-    - Comparing age distributions across datasets (COVID-19, Dengue, and Febrile Diseases).
+  - Comparing age distributions across datasets (COVID-19, Dengue, and Febrile Diseases).
 - **MANOVA (Multivariate Analysis of Variance):**
-    - Comparing comorbidities across datasets (e.g., COVID-19 vs. Dengue).
-    - Analyzing differences in comorbidities between ambulatory and hospitalized patients.
+  - Comparing comorbidities across datasets (e.g., COVID-19 vs. Dengue).
+  - Analyzing differences in comorbidities between ambulatory and hospitalized patients.
 
 ### 3. **Clustering Analysis**
 
 - **K-Means Clustering:**
-    - Applied to numerical variables to group dengue cases.
+  - Applied to numerical variables to group dengue cases.
 - **K-Prototypes Clustering:**
-    - Applied to mixed-type data (numerical and categorical) in febrile diseases.
+  - Applied to mixed-type data (numerical and categorical) in febrile diseases.
 - **Hierarchical Clustering:**
-    - Applied to COVID-19 data using Ward’s method.
+  - Applied to COVID-19 data using Ward’s method.
 - **Time-Series Clustering:**
-    - Clustering morbidity data to uncover temporal patterns.
+  - Clustering morbidity data to uncover temporal patterns.
 - **Principal Component Analysis (PCA):**
-    - Dimensionality reduction applied to COVID-19 and morbidity datasets.
+  - Dimensionality reduction applied to COVID-19 and morbidity datasets.
 
 ### 4. **Classification Models**
 
 - **Logistic Regression:**
-    - Predicting patient type (ambulatory vs. hospitalized) based on comorbidities in the COVID-19 dataset.
-- **Random Forest:**
-    - Predicting COVID-19 case classifications (e.g., positive, negative, suspected).
-    - Classifying Dengue case outcomes (e.g., diagnosis).
+  - Predicting patient type (ambulatory vs. hospitalized) based on comorbidities in the COVID-19 dataset.
 - **Gradient Boosting:**
-    - Predicting PCR test results in dengue cases.
+  - Predicting PCR test results in dengue cases.
 - **Quadratic Discriminant Analysis (QDA):**
-    - Predicting mortality in dengue cases using demographic and medical data.
+  - Predicting mortality in dengue cases using demographic and medical data.
 
 ---
 
@@ -75,6 +74,8 @@ This project leverages several advanced libraries to ensure optimal functionalit
 
 - **Data Manipulation:**
   - `pandas`, `numpy`
+- **Database & Utils:**
+  - `sqlite3` (data storage)
 - **Visualization:**
   - `plotly`, `matplotlib`, `dash`, `dash-bootstrap-components`
 - **Geospatial Analysis:**
@@ -90,7 +91,7 @@ This project leverages several advanced libraries to ensure optimal functionalit
 - **Web Application Framework:**
   - `Dash`, `Plotly`
 - **Deployment:**
-  - `Heroku`
+  - `Render`
 
 ---
 
@@ -121,7 +122,40 @@ Data was collected under sentinel surveillance methods recommended by the WHO, e
 
 ## Deployment
 
-The dashboard has been deployed using Heroku. It is designed to efficiently handle large datasets by loading them once into memory, minimizing loading times for interactive visualizations.
+The dashboard is deployed on [Render](https://render.com/), allowing public access to all visualizations and results via the following link:
+  👉 **[https://topological-analysis-of-airbnb-price.onrender.com/](https://topological-analysis-of-airbnb-price.onrender.com/)**
+
+---
+
+## Installation
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone https://github.com/bacaSantiago/IMSS-Morbidity-Patterns-Analysis-Dashboard
+   cd IMMS-morbidity-patterns-analysis
+   ```
+
+2. **Create a virtual environment and install dependencies:**
+
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+3. **Prepare the data:**
+
+   - Place `IMMS_Mexico.sqlite` in the project root (contains Covid, Dengue, Febriles, Morbilidad).
+   - Ensure asset files are in `assets/`.
+
+4. **Run the dashboard:**
+
+   ```bash
+   python dashboard.py
+   ```
+
+   Navigate to `http://127.0.0.1:8050` in your browser.
 
 ---
 
