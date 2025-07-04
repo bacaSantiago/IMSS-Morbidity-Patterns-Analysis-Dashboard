@@ -3,7 +3,7 @@ dash-bootstrap-components==2.0.3
 dash-core-components==2.0.0
 dash-html-components==2.0.0
 dash-table==5.0.0
-fastcluster==1.3.0
+fastcluster==1.2.6
 factor_analyzer==0.5.1
 geopandas==1.1.1
 kmodes==0.12.2
