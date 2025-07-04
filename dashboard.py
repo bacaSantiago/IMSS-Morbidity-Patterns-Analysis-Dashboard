@@ -26,6 +26,7 @@ import plotly.graph_objects as go
 import os
 import dash
 import sqlite3
+import pickle
 from dash import dcc, html, dash_table
 import dash_bootstrap_components as dbc
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -1102,11 +1103,11 @@ def factor_analysis_febriles():
 This section contains the classification functions for the dashboard.
 """
 
+"""
 def logistic_regression_tipo_paciente():
-    """
-    Logistic Regression for predicting TIPO_PACIENTE (Ambulatorio vs Hospitalized)
-    using comorbidities in the COVID dataset.
-    """
+    # Logistic Regression for predicting TIPO_PACIENTE (Ambulatorio vs Hospitalized)
+    # using comorbidities in the COVID dataset.
+
     # Filter the dataset for necessary columns and valid TIPO_PACIENTE values
     covid_filtered = covid_df[covid_df['TIPO_PACIENTE'].isin([1, 2])].copy()
     features = ['DIABETES', 'HIPERTENSION', 'OBESIDAD']
@@ -1140,11 +1141,11 @@ def logistic_regression_tipo_paciente():
     }).sort_values(by='Coefficient', ascending=False)
     
     return model, acc, report, cm, feature_importance
+""" 
+
 
 def extract_weighted_metrics(report, accuracy):
-    """
-    Extract accuracy, weighted precision, recall, and F1-score from a classification report.
-    """
+    # Extract accuracy, weighted precision, recall, and F1-score from a classification report.
     report_lines = report.split("\n")
     weighted_line = report_lines[-2].split()  # Weighted Avg is usually the second-to-last line
 
@@ -1157,7 +1158,6 @@ def extract_weighted_metrics(report, accuracy):
 
 """
 def gradient_boosting_resultado_pcr():
-
     #Gradient Boosting for predicting RESULTADO_PCR (positive/negative/other)
     #using demographic and temporal features in the Dengue dataset.
 
@@ -1231,10 +1231,10 @@ def load_gradient_boosting_results():
 
     return acc, report, cm, feature_importance
 
+"""
 def qda_classification_dengue():
-    """
-    Perform QDA classification for DEFUNCION on the Dengue dataset and evaluate the model.
-    """
+    # Perform QDA classification for DEFUNCION on the Dengue dataset and evaluate the model.
+
     # Select features and target variable
     features = ['EDAD_ANOS', 'DIABETES', 'HIPERTENSION', 'INMUNOSUPR', 'EMBARAZO']
     target = 'DEFUNCION'
@@ -1269,11 +1269,12 @@ def qda_classification_dengue():
     }).sort_values(by='Importance', ascending=False)
 
     return qda_model, acc, report, cm, feature_importance
+"""
+
 
 def qda_dengue_defuncion():
-    """
-    Apply Quadratic Discriminant Analysis (QDA) to the Dengue dataset for DEFUNCION prediction.
-    """
+    # Apply Quadratic Discriminant Analysis (QDA) to the Dengue dataset for DEFUNCION prediction.
+    
     # Select features and target variable
     features = ['EDAD_ANOS', 'DIABETES', 'HIPERTENSION', 'CIRROSIS_HEPATICA', 'INMUNOSUPR']
     dengue_filtered = dengue_df.dropna(subset=features + ['DEFUNCION'])
@@ -1316,7 +1317,39 @@ def qda_dengue_defuncion():
 
     return fig
 
+"""
+def save_classification_model(model, accuracy, report, cm, feature_importance, name):
+    # Saves a trained classification model and its metrics to disk under assets/{name}_*.*
 
+    # Save the fitted model
+    with open(f"assets/{name}_model.pkl", "wb") as f:
+        pickle.dump(model, f)
+    # Save metrics & feature_importance
+    payload = {
+        "accuracy": accuracy,
+        "classification_report": report,
+        "confusion_matrix": cm.tolist() if hasattr(cm, "tolist") else cm,
+        "feature_importance": feature_importance.to_dict("records")
+    }
+    with open(f"assets/{name}_metrics.json", "w") as f:
+        json.dump(payload, f, indent=2)
+"""
+
+def load_classification_model(name):
+    """
+    Loads back model + metrics from assets/{name}_model.pkl and {name}_metrics.json
+    Returns (model, accuracy, report, cm, feature_importance_df)
+    """
+    # Load model
+    with open(f"assets/{name}_model.pkl", "rb") as f:
+        model = pickle.load(f)
+    # Load metrics
+    metrics = json.load(open(f"assets/{name}_metrics.json"))
+    acc    = metrics["accuracy"]
+    report = metrics["classification_report"]
+    cm     = metrics["confusion_matrix"]
+    fi_df  = pd.DataFrame(metrics["feature_importance"])
+    return model, acc, report, cm, fi_df
 
 """_Dash_
 This section contains the functions for the Dash web application.
@@ -1584,10 +1617,21 @@ clustering_tab = dbc.Tab(
     ]
 )
 
+"""
 # Generate results
-logistic_model, logistic_acc, logistic_report, logistic_cm, logistic_feature_importance = logistic_regression_tipo_paciente()
+model, acc, report, cm, fi = logistic_regression_tipo_paciente()
+save_classification_model(model, acc, report, cm, fi, "logistic")
 
-qda_model, qda_acc, qda_report, qda_cm, qda_feature_importance = qda_classification_dengue()
+model, acc, report, cm, fi = qda_classification_dengue()
+save_classification_model(model, acc, report, cm, fi, "qda")
+"""
+
+# Load classification models and their results
+logistic_model, logistic_acc, logistic_report, logistic_cm, logistic_fi = load_classification_model("logistic")
+qda_model, qda_acc, qda_report, qda_cm, qda_fi    = load_classification_model("qda")
+
+#logistic_model, logistic_acc, logistic_report, logistic_cm, logistic_feature_importance = logistic_regression_tipo_paciente()
+#qda_model, qda_acc, qda_report, qda_cm, qda_feature_importance = qda_classification_dengue()
 gb_acc, gb_report, gb_cm, gb_feature_importance = load_gradient_boosting_results()
 
 
@@ -1652,7 +1696,7 @@ classification_tab = dbc.Tab(
                 id='logistic-feature-importance',
                 figure=
                     px.bar(
-                    logistic_feature_importance, 
+                    logistic_fi, 
                     x='Feature', y='Coefficient',
                     title="Feature Importance (Logistic Regression)",
                     template='seaborn',
