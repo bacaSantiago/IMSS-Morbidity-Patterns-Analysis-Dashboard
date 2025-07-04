@@ -5,29 +5,27 @@ import plotly.express as px
 import json
 import matplotlib.pyplot as plt
 from scipy.stats import f_oneway, zscore
-import geopandas as gpd
-import statsmodels.api as sm
-from sklearn.mixture import GaussianMixture
 from statsmodels.multivariate.manova import MANOVA
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-from fastcluster import linkage
+from fastcluster import linkage # type: ignore
 from scipy.cluster.hierarchy import dendrogram
-from kmodes.kprototypes import KPrototypes
+from kmodes.kprototypes import KPrototypes # type: ignore
 from tslearn.clustering import TimeSeriesKMeans
 from tslearn.preprocessing import TimeSeriesScalerMeanVariance
 from sklearn.decomposition import PCA
-from factor_analyzer import FactorAnalyzer
-from factor_analyzer.rotator import Rotator
+from factor_analyzer import FactorAnalyzer # type: ignore
+from factor_analyzer.rotator import Rotator # type: ignore
 import plotly.figure_factory as ff
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, roc_curve, auc, precision_recall_curve
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 import plotly.graph_objects as go
 import os
 import dash
+import sqlite3
 from dash import dcc, html, dash_table
 import dash_bootstrap_components as dbc
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -44,7 +42,7 @@ For unzipping the covid_df file you can use the following code:
 import zipfile
 with zipfile.ZipFile('Clean_Data/Clean_COVID19MEXICO2024.zip', 'r') as zip_ref:
     zip_ref.extractall('Clean_Data/')
-"""
+    
 covid_df = pd.read_csv('Clean_Data/Clean_COVID19MEXICO2024.csv', 
                        parse_dates=['FECHA_ACTUALIZACION', 'FECHA_INGRESO', 'FECHA_SINTOMAS', 'FECHA_DEF'])
 febriles_df = pd.read_csv('Clean_Data/Clean_Febriles.csv', 
@@ -53,6 +51,17 @@ dengue_df = pd.read_csv('Clean_Data/Clean_Dengue.csv',
                         parse_dates=['FECHA_ACTUALIZACION', 'FECHA_SIGN_SINTOMAS'])
 morbilidad_df = pd.read_csv('Clean_Data/Morbilidad.csv', 
                             encoding='latin1')
+"""
+
+# Load the datasets from SQLite database
+_conn = sqlite3.connect("IMMS_Mexico.sqlite")
+covid_df = pd.read_sql_query("SELECT * FROM Covid", _conn, parse_dates=['FECHA_ACTUALIZACION', 'FECHA_INGRESO', 'FECHA_SINTOMAS', 'FECHA_DEF'])
+febriles_df = pd.read_sql_query("SELECT * FROM Febriles", _conn, parse_dates=['FECHA_ACTUALIZACION', 'FECHA_DIAGNOSTICO'])
+dengue_df = pd.read_sql_query("SELECT * FROM Dengue", _conn, parse_dates=['FECHA_ACTUALIZACION', 'FECHA_SIGN_SINTOMAS'])
+morbilidad_df = pd.read_sql_query("SELECT * FROM Morbilidad", _conn)
+morbilidad_df = morbilidad_df.apply(lambda col: col.str.encode('latin1').str.decode('utf-8') if col.dtype == 'object' else col)
+
+_conn.close()
 
 def covid_age_gender_distribution():
     # Map gender for interpretability
@@ -1075,7 +1084,7 @@ def factor_analysis_febriles():
         x=loading_df.columns.tolist(),  # Factors
         y=loading_df.index.tolist(),   # Features
         annotation_text=np.round(loading_df.values, 2),  # Rounded values for annotations
-        colorscale=blues_colormap,
+        colorscale=blues_colormap, # type: ignore
         showscale=True
     )
     fig.update_layout(
@@ -1131,84 +1140,6 @@ def logistic_regression_tipo_paciente():
     }).sort_values(by='Coefficient', ascending=False)
     
     return model, acc, report, cm, feature_importance
-
-def random_forest_clasificacion_final():
-    """
-    Random Forest for predicting CLASIFICACION_FINAL (e.g., positive, negative, suspected)
-    using comorbidities in the COVID dataset.
-    """
-    # Filter the dataset for necessary columns
-    covid_filtered = covid_df[covid_df['CLASIFICACION_FINAL'].isin(range(1, 8))].copy()
-    features = ['DIABETES', 'HIPERTENSION', 'OBESIDAD', 'ASMA', 'EPOC', 'INMUSUPR']
-    target = 'CLASIFICACION_FINAL'
-
-    # Handle missing values (assume NA = 2 for "No" in this case)
-    covid_filtered[features] = covid_filtered[features].fillna(2)
-
-    # Split the data into training and testing sets
-    X = covid_filtered[features]
-    y = covid_filtered[target]
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=69, stratify=y)
-
-    # Initialize Random Forest model
-    model = RandomForestClassifier(random_state=42, class_weight=None, max_depth=5, min_samples_leaf=1, min_samples_split=2, n_estimators=50)
-    model.fit(X_train, y_train)
-
-    # Predictions
-    y_pred = model.predict(X_test)
-    y_pred_proba = model.predict_proba(X_test)
-
-    # Metrics
-    acc = accuracy_score(y_test, y_pred)
-    report = classification_report(y_test, y_pred, target_names=[
-        'Confirmed by Association', 'Confirmed by Decease', 'Confirmed by Laboratory',
-        'Invalid', 'Not Applicable', 'Suspected', 'Negative'
-    ], zero_division=0)
-    cm = confusion_matrix(y_test, y_pred)
-
-    # Feature Importance
-    feature_importance = pd.DataFrame({
-        'Feature': features,
-        'Importance': model.feature_importances_
-    }).sort_values(by='Importance', ascending=False)
-
-    return model, acc, report, cm, feature_importance, X_test, y_test, y_pred_proba
-
-def precision_recall_curve_rf(y_test, y_pred_proba, n_classes=7):
-    """
-    Generate a Precision-Recall curve for Random Forest predictions.
-    Handles cases where no positive samples exist for a class.
-    """
-    precision = {}
-    recall = {}
-    fig = go.Figure()
-
-    for i in range(n_classes):
-        # Check if the class has any positive samples in y_test
-        if (y_test == i).sum() == 0:
-            continue  # Skip classes with no positive samples
-
-        # Compute precision-recall curve
-        precision[i], recall[i], _ = precision_recall_curve(
-            (y_test == i).astype(int), y_pred_proba[:, i]
-        )
-
-        # Add curve to the figure
-        fig.add_trace(go.Scatter(
-            x=recall[i], y=precision[i],
-            mode='lines',
-            name=f'Class {i}'
-        ))
-
-    # Update layout
-    fig.update_layout(
-        title='Precision-Recall Curve (Random Forest)',
-        xaxis_title='Recall',
-        yaxis_title='Precision',
-        template='seaborn'
-    )
-
-    return fig
 
 def extract_weighted_metrics(report, accuracy):
     """
@@ -1300,102 +1231,6 @@ def load_gradient_boosting_results():
 
     return acc, report, cm, feature_importance
 
-def random_forest_dictamen():
-    """
-    Random Forest for predicting DICTAMEN using demographic and medical features in the Dengue dataset.
-    """
-    # Filter Dengue dataset for necessary columns
-    dengue_filtered = dengue_df[dengue_df['DICTAMEN'].isin([1, 2, 3, 4])].copy()
-    features = ['EDAD_ANOS', 'ENTIDAD_RES', 'DIABETES', 'HIPERTENSION', 'HEMORRAGICOS']
-    target = 'DICTAMEN'
-
-    # Preprocess data
-    dengue_filtered[features] = dengue_filtered[features].fillna(0)  # Fill missing values
-
-    # Split data into training and testing sets
-    X = dengue_filtered[features]
-    y = dengue_filtered[target]
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=69, stratify=y)
-
-    # Initialize Random Forest model
-    model = RandomForestClassifier(random_state=42, max_depth=15, min_samples_leaf=1, min_samples_split=2, n_estimators=200)
-    model.fit(X_train, y_train)
-
-    # Predictions
-    y_pred = model.predict(X_test)
-    y_pred_proba = model.predict_proba(X_test)  # Required for ROC curve
-
-    # Dynamically set target names and labels based on the unique classes in y
-    unique_classes = sorted(y.unique())
-    target_names = [f"Class {cls}" for cls in unique_classes]
-
-    # Metrics
-    acc = accuracy_score(y_test, y_pred)
-    report = classification_report(y_test, y_pred, target_names=target_names)
-    cm = confusion_matrix(y_test, y_pred, labels=unique_classes)  # Use `labels` to match classes exactly
-
-    # Feature Importance
-    feature_importance = pd.DataFrame({
-        'Feature': features,
-        'Importance': model.feature_importances_
-    }).sort_values(by='Importance', ascending=False)
-
-    return model, acc, report, cm, feature_importance, X_test, y_test, y_pred_proba
-
-def roc_curve_rf(y_test, y_pred_proba, n_classes=None):
-    """
-    Generate an ROC Curve for Random Forest predictions.
-    Dynamically handles cases where no positive samples exist for a class.
-    """
-    import numpy as np
-    from sklearn.metrics import roc_curve, auc
-    import plotly.graph_objects as go
-
-    # Dynamically determine the number of classes from y_test and y_pred_proba
-    if n_classes is None:
-        n_classes = y_pred_proba.shape[1]
-
-    # Compute ROC curve and AUC for each class
-    fpr = {}
-    tpr = {}
-    roc_auc = {}
-    fig = go.Figure()
-
-    for i in range(n_classes):
-        # Check if the class exists in y_test
-        if (y_test == i).sum() == 0:
-            continue  # Skip classes with no positive samples
-
-        # Compute ROC curve
-        fpr[i], tpr[i], _ = roc_curve((y_test == i).astype(int), y_pred_proba[:, i])
-        roc_auc[i] = auc(fpr[i], tpr[i])
-
-        # Add curve to the figure
-        fig.add_trace(go.Scatter(
-            x=fpr[i], y=tpr[i],
-            mode='lines',
-            line=dict(color=['#006EC1', '#006EC1'][i % 2]), 
-            name=f'Class {i} (AUC = {roc_auc[i]:.2f})'
-        ))
-
-    # Add diagonal reference line
-    fig.add_trace(go.Scatter(
-        x=[0, 1], y=[0, 1],
-        mode='lines',
-        line=dict(dash='dash', color='#89D1F3'),
-        name='No Skill'
-    ))
-
-    # Update layout
-    fig.update_layout(
-        title='ROC Curve (Random Forest)',
-        xaxis_title='False Positive Rate',
-        yaxis_title='True Positive Rate',
-        template='seaborn'
-    )
-
-    return fig
-
 def qda_classification_dengue():
     """
     Perform QDA classification for DEFUNCION on the Dengue dataset and evaluate the model.
@@ -1427,7 +1262,7 @@ def qda_classification_dengue():
 
     # Compute pseudo-feature importances for QDA (based on absolute mean differences in the means of the features per class)
     class_means = qda_model.means_
-    importance = np.abs(class_means[0] - class_means[1])  # Differences between class means
+    importance = np.abs(class_means[0] - class_means[1])  # type: ignore
     feature_importance = pd.DataFrame({
         'Feature': features,
         'Importance': importance
@@ -1493,9 +1328,11 @@ eda_tab = dbc.Tab(
         # COVID-19 Subtitle and Visualizations
         html.H4("COVID-19 Dataset", style={'text-align': 'center', 'margin-top': '20px'}),
         html.P(
-            "This section presents exploratory data analysis (EDA) for the COVID-19 dataset, "
-            "covering demographic, temporal, geospatial, and medical insights.",
-            style={'text-align': 'center', 'margin-bottom': '40px'}
+            """
+            This section presents exploratory data analysis (EDA) for the COVID-19 dataset, 
+            covering demographic, temporal, geospatial, and medical insights.
+            """,
+            style={'text-align': 'center', 'margin-bottom': '40px', "max-width": "1000px", "margin-left": "auto", "margin-right": "auto"}
         ),
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),  
 
@@ -1525,9 +1362,11 @@ eda_tab = dbc.Tab(
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
         html.H4("Dengue Dataset", style={'text-align': 'center', 'margin-top': '20px'}),
         html.P(
-            "This section presents exploratory data analysis (EDA) for the Dengue dataset, "
-            "covering demographic, temporal, geospatial, and medical insights.",
-            style={'text-align': 'center', 'margin-bottom': '40px'}
+            """
+            This section presents exploratory data analysis (EDA) for the Dengue dataset, 
+            covering demographic, temporal, geospatial, and medical insights.
+            """,
+            style={'text-align': 'center', 'margin-bottom': '40px', "max-width": "1000px", "margin-left": "auto", "margin-right": "auto"}
         ),
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
 
@@ -1551,9 +1390,11 @@ eda_tab = dbc.Tab(
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
         html.H4("Diseases with Fever and Exanthema Dataset", style={'text-align': 'center', 'margin-top': '20px'}),
         html.P(
-            "This section presents exploratory data analysis (EDA) for the Diseases with Fever and Exanthema dataset, "
-            "covering demographic, categorical, and geospatial insights.",
-            style={'text-align': 'center', 'margin-bottom': '40px'}
+            """
+            This section presents exploratory data analysis (EDA) for the Diseases with Fever and Exanthema dataset, 
+            covering demographic, categorical, and geospatial insights.
+            """,
+            style={'text-align': 'center', 'margin-bottom': '40px', "max-width": "1000px", "margin-left": "auto", "margin-right": "auto"}
         ),
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
 
@@ -1575,9 +1416,11 @@ eda_tab = dbc.Tab(
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
         html.H4("Morbilidad Dataset", style={'text-align': 'center', 'margin-top': '20px'}),
         html.P(
-            "This section presents exploratory data analysis (EDA) for the Morbilidad dataset, "
-            "highlighting trends, proportions, and geospatial distributions of diseases.",
-            style={'text-align': 'center', 'margin-bottom': '40px'}
+            """
+            This section presents exploratory data analysis (EDA) for the Morbilidad dataset, 
+            highlighting trends, proportions, and geospatial distributions of diseases.
+            """,
+            style={'text-align': 'center', 'margin-bottom': '40px', "max-width": "1000px", "margin-left": "auto", "margin-right": "auto"}
         ),
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
 
@@ -1611,8 +1454,10 @@ stat_tests_tab = dbc.Tab(
         # ANOVA Section
         html.H4("Analysis of Variance (ANOVA)", style={'text-align': 'center', 'margin-top': '20px'}),
         html.P(
-            "This section presents ANOVA results analyzing differences in age across the datasets (COVID, Dengue, Febriles).",
-            style={'text-align': 'center', 'margin-bottom': '40px'}
+            """
+            This section presents ANOVA results analyzing differences in age across the datasets (COVID, Dengue, Febriles).
+            """,
+            style={'text-align': 'center', 'margin-bottom': '40px', "max-width": "1000px", "margin-left": "auto", "margin-right": "auto"}
         ),
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
         dbc.Row([
@@ -1623,13 +1468,14 @@ stat_tests_tab = dbc.Tab(
         # Multiple Datasets MANOVA Section
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
         html.H4("Multivariate Analysis of Variance (MANOVA)", style={'text-align': 'center', 'margin-top': '20px'}),
-        html.P([
-            "This section presents MANOVA results for analyzing differences in comorbidities ",
-            "(Diabetes, Hypertension, and Pregnancy) between COVID and Dengue datasets.",
-            html.Br(),
-            "This section also presents MANOVA results for analyzing differences in comorbidities ",
-            "(Diabetes, Hypertension, Asthma, EPOC, and Obesity) between ambulatory and hospitalized patients in the COVID dataset.",
-        ], style={'text-align': 'center', 'margin-bottom': '40px'}
+        html.P(
+            """
+            This section presents MANOVA results for analyzing differences in comorbidities 
+            (Diabetes, Hypertension, and Pregnancy) between COVID and Dengue datasets.
+            This section also presents MANOVA results for analyzing differences in comorbidities
+            (Diabetes, Hypertension, Asthma, EPOC, and Obesity) between ambulatory and hospitalized patients in the COVID dataset.
+            """,
+            style={'text-align': 'center', 'margin-bottom': '40px', "max-width": "1000px", "margin-left": "auto", "margin-right": "auto"}
         ),
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
         dbc.Row([
@@ -1678,10 +1524,12 @@ clustering_tab = dbc.Tab(
         # Agglomerative and Time Series Clustering Section
         html.H4("Agglomerative and Time Series Clustering", style={'text-align': 'center', 'margin-top': '20px'}),
         html.P(
-            "This section presents clustering analyses, including K-Means and K-Prototypes for grouping based on "
-            "numerical and mixed data, as well as hierarchical clustering and time-series clustering for uncovering "
-            "temporal patterns and structural groupings.",
-            style={'text-align': 'center', 'margin-bottom': '40px'}
+            """
+            This section presents clustering analyses, including K-Means and K-Prototypes for grouping based on 
+            numerical and mixed data, as well as hierarchical clustering and time-series clustering for uncovering 
+            temporal patterns and structural groupings.
+            """,
+            style={'text-align': 'center', 'margin-bottom': '40px', "max-width": "1000px", "margin-left": "auto", "margin-right": "auto"}
         ),
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
         dbc.Row([
@@ -1699,10 +1547,12 @@ clustering_tab = dbc.Tab(
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px', 'margin-top': '20px'}),
         html.H4("Principal Component Analysis (PCA)", style={'text-align': 'center', 'margin-top': '20px'}),
         html.P(
-            "Principal Component Analysis is used for dimensionality reduction, allowing us to represent complex datasets "
-            "in a simplified form by extracting the components that explain the most variance in the data. The 2D and 3D PCA "
-            "plots below show the distribution of states and their disease profiles based on their principal components.",
-            style={'text-align': 'center', 'margin-bottom': '40px'}
+            """
+            Principal Component Analysis is used for dimensionality reduction, allowing us to represent complex datasets 
+            in a simplified form by extracting the components that explain the most variance in the data. The 2D and 3D PCA 
+            plots below show the distribution of states and their disease profiles based on their principal components.
+            """,
+            style={'text-align': 'center', 'margin-bottom': '40px', "max-width": "1000px", "margin-left": "auto", "margin-right": "auto"}
         ),
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
         dbc.Row([
@@ -1716,10 +1566,12 @@ clustering_tab = dbc.Tab(
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
         html.H4("Factor Analysis (FA)", style={'text-align': 'center', 'margin-top': '20px'}),
         html.P(
-            "Factor Analysis is a statistical method used to identify latent factors that explain the variability in a dataset. "
-            "By reducing the dimensionality of the data, FA helps uncover patterns and groupings of related variables. Below, "
-            "we explore the relationships between comorbidities in the COVID, Dengue, and Febriles datasets.",
-            style={'text-align': 'center', 'margin-bottom': '40px'}
+            """
+            Factor Analysis is a statistical method used to identify latent factors that explain the variability in a dataset. 
+            By reducing the dimensionality of the data, FA helps uncover patterns and groupings of related variables. Below, 
+            we explore the relationships between comorbidities in the COVID, Dengue, and Febriles datasets.
+            """,
+            style={'text-align': 'center', 'margin-bottom': '40px', "max-width": "1000px", "margin-left": "auto", "margin-right": "auto"}
         ),
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
         dbc.Row([
@@ -1734,19 +1586,13 @@ clustering_tab = dbc.Tab(
 
 # Generate results
 logistic_model, logistic_acc, logistic_report, logistic_cm, logistic_feature_importance = logistic_regression_tipo_paciente()
-rf_model, rf_acc, rf_report, rf_cm, rf_feature_importance, X_test_rf, y_test_rf, y_pred_proba_rf = random_forest_clasificacion_final()
-rf_precision_recall_curve = precision_recall_curve_rf(y_test_rf, y_pred_proba_rf, n_classes=7)
 
-rf_d_model, rf_d_acc, rf_d_report, rf_d_cm, rf_d_feature_importance, X_test_rf_d, y_test_rf_d, y_pred_proba_rf_d = random_forest_dictamen()
 qda_model, qda_acc, qda_report, qda_cm, qda_feature_importance = qda_classification_dengue()
 gb_acc, gb_report, gb_cm, gb_feature_importance = load_gradient_boosting_results()
 
 
 # Extract weighted metrics for each model
 logistic_metrics_df = extract_weighted_metrics(logistic_report, logistic_acc).round(3)
-rf_metrics_df = extract_weighted_metrics(rf_report, rf_acc).round(3)
-
-rf_d_metrics_df = extract_weighted_metrics(rf_d_report, rf_d_acc).round(3)
 qda_metrics_df = extract_weighted_metrics(qda_report, qda_acc).round(3)
 gb_metrics_df = extract_weighted_metrics(gb_report, gb_acc).round(3)
 
@@ -1756,9 +1602,11 @@ classification_tab = dbc.Tab(
         # COVID Section
         html.H4("COVID-19 Classification Results", style={'text-align': 'center', 'margin-top': '20px'}),
         html.P(
-            "This section showcases the results of classification models applied to the COVID-19 dataset. "
-            "We include Logistic Regression and Random Forest methods to predict patient types and COVID classifications.",
-            style={'text-align': 'center', 'margin-bottom': '40px'}
+            """
+            This section showcases the results of classification models applied to the COVID-19 dataset. 
+            We include Logistic Regression to predict patient types.
+            """,
+            style={'text-align': 'center', 'margin-bottom': '40px', "max-width": "1000px", "margin-left": "auto", "margin-right": "auto"}
         ),
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
 
@@ -1766,110 +1614,65 @@ classification_tab = dbc.Tab(
         html.H5("Logistic Regression for TIPO_PACIENTE", style={'text-align': 'center', 'margin-top': '20px'}),
         dbc.Row([
             # Metrics Table
-            dbc.Col(html.Div([
-                html.H6("Metrics Summary", style={'text-align': 'center'}),
-                dash_table.DataTable(
-                    id='logistic-metrics-table',
-                    columns=[{'name': col, 'id': col} for col in logistic_metrics_df.columns],
-                    data=logistic_metrics_df.to_dict('records'),
-                    style_cell={'textAlign': 'center'},
-                    style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
-                    style_as_list_view=True
-                )
-            ], style={'align-items': 'center', 'justify-content': 'center'}), width=5),
+            dbc.Col([
+                html.Div([
+                    html.H6("Metrics Summary", style={'text-align': 'center'}),
+                    dash_table.DataTable(
+                        id='logistic-metrics-table',
+                        columns=[{'name': col, 'id': col} for col in logistic_metrics_df.columns],
+                        data=logistic_metrics_df.to_dict('records'), # type: ignore
+                        style_cell={'textAlign': 'center'},
+                        style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
+                        style_as_list_view=True
+                    )
+                ], style={'align-items': 'center', 'justify-content': 'center', "margin-bottom": "30px"}), 
+                
+                html.Div([
+                    html.H6("Confusion Matrix", style={'text-align': 'center'}),
+                    dash_table.DataTable(
+                        id='logistic-confusion-matrix',
+                        columns=[
+                            {'name': 'Predicted Ambulatorio', 'id': 'Ambulatorio'},
+                            {'name': 'Predicted Hospitalizado', 'id': 'Hospitalizado'}
+                        ],
+                        data=[
+                            {"Ambulatorio": logistic_cm[0][0], "Hospitalizado": logistic_cm[0][1]},
+                            {"Ambulatorio": logistic_cm[1][0], "Hospitalizado": logistic_cm[1][1]}
+                        ],
+                        style_cell={'textAlign': 'center'},
+                        style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
+                        style_as_list_view=True
+                    )
+                ])
+            ], width=4), 
         
             # Feature Importance
-            dbc.Col(dcc.Graph(
+            dbc.Col(
+                dcc.Graph(
                 id='logistic-feature-importance',
-                figure=px.bar(
+                figure=
+                    px.bar(
                     logistic_feature_importance, 
                     x='Feature', y='Coefficient',
                     title="Feature Importance (Logistic Regression)",
                     template='seaborn',
                     color='Feature',
                     color_discrete_sequence=['#006EC1', '#009EE5', '#89D1F3']
-                )
-            ), width=6),
+                    )
+                ), 
+            width=6),
         ], className="mb-4 justify-content-center", style={'display': 'flex', 'align-items': 'center'}),
-
-        # Confusion Matrix
-        html.Br(),
-        dbc.Row([
-            dbc.Col(html.Div([
-                html.H6("Confusion Matrix", style={'text-align': 'center'}),
-                dash_table.DataTable(
-                    id='logistic-confusion-matrix',
-                    columns=[
-                        {'name': 'Predicted Ambulatorio', 'id': 'Ambulatorio'},
-                        {'name': 'Predicted Hospitalizado', 'id': 'Hospitalizado'}
-                    ],
-                    data=[
-                        {"Ambulatorio": logistic_cm[0][0], "Hospitalizado": logistic_cm[0][1]},
-                        {"Ambulatorio": logistic_cm[1][0], "Hospitalizado": logistic_cm[1][1]}
-                    ],
-                    style_cell={'textAlign': 'center'},
-                    style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
-                    style_as_list_view=True
-                )
-            ]), width=6),
-        ], className="mb-4 justify-content-center", style={'margin-bottom': '100px'}),
-
-        # Random Forest Results
-        html.H5("Random Forest for CLASIFICACION_FINAL", style={'text-align': 'center', 'margin-top': '100px'}),
-        dbc.Row([
-            # Metrics Table
-            dbc.Col(html.Div([
-                html.H6("Metrics Summary", style={'text-align': 'center'}),
-                dash_table.DataTable(
-                    id='rf-metrics-table',
-                    columns=[{'name': col, 'id': col} for col in rf_metrics_df.columns],
-                    data=rf_metrics_df.to_dict('records'),
-                    style_cell={'textAlign': 'center'},
-                    style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
-                    style_as_list_view=True
-                )
-            ], style={'align-items': 'center', 'justify-content': 'center'}), width=5),
-            
-            # Precision-Recall Curve
-            dbc.Col(dcc.Graph(
-                id='rf-precision-recall',
-                figure=rf_precision_recall_curve, 
-                style={'height': '400px'}
-            ), width=6),
-        ], className="mb-4 justify-content-center", style={'display': 'flex', 'align-items': 'center'}),
-
-        # Confusion Matrix
-        dbc.Row([
-            dbc.Col(html.Div([
-                html.H6("Confusion Matrix", style={'text-align': 'center'}),
-                dash_table.DataTable(
-                    id='rf-confusion-matrix',
-                    columns=[
-                        {'name': f'Predicted {cls}', 'id': f'Class {i}'}
-                        for i, cls in enumerate([
-                            'Association', 'Decease', 'Laboratory', 'Invalid', 'Not Applicable', 'Suspected', 'Negative'
-                        ])
-                    ],
-                    data=[
-                        {f'Class {i}': row[i] for i in range(len(row))}
-                        for row in rf_cm  # Confusion matrix
-                    ],
-                    style_cell={'textAlign': 'center'},
-                    style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
-                    style_as_list_view=True
-                )
-            ]), width=12),
-        ], className="mb-4 justify-content-center", style={'margin-bottom': '150px'}),
-        
         
         # Dengue Section
         html.Br(style={'margin-bottom': '200px'}),
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
         html.H4("Dengue Classification Results", style={'text-align': 'center', 'margin-top': '20px'}),
         html.P(
-            "This section showcases the results of classification models applied to the Dengue dataset. "
-            "We include Gradient Boosting, Random Forest, and QDA methods to predict various outcomes, such as PCR results, diagnosis, and mortality.",
-            style={'text-align': 'center', 'margin-bottom': '40px'}
+            """
+            This section showcases the results of classification models applied to the Dengue dataset. 
+            We include Gradient Boosting, and QDA methods to predict various outcomes, such as PCR results, and mortality.
+            """,
+            style={'text-align': 'center', 'margin-bottom': '40px', "max-width": "1000px", "margin-left": "auto", "margin-right": "auto"}
         ),
         html.Hr(style={'border': '1px solid #ccc', 'margin-bottom': '30px'}),
         
@@ -1883,12 +1686,12 @@ classification_tab = dbc.Tab(
                 dash_table.DataTable(
                     id='gb-metrics-table',
                     columns=[{'name': col, 'id': col} for col in gb_metrics_df.columns],
-                    data=gb_metrics_df.to_dict('records'),
+                    data=gb_metrics_df.to_dict('records'), # type: ignore
                     style_cell={'textAlign': 'center'},
                     style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
                     style_as_list_view=True
                 )
-            ], style={'align-items': 'center', 'justify-content': 'center'}), width=5),
+            ], style={'align-items': 'center', 'justify-content': 'center'}), width=4),
 
             # Feature Importance
             dbc.Col(dcc.Graph(
@@ -1903,70 +1706,43 @@ classification_tab = dbc.Tab(
                 )
             ), width=6),
         ], className="mb-4 justify-content-center", style={'display': 'flex', 'align-items': 'center', 'margin-bottom': '30px'}),       
-        
-        
-        # Random Forest Results
-        html.Br(style={'margin-bottom': '100px'}),
-        html.H5("Random Forest for DICTAMEN", style={'text-align': 'center', 'margin-top': '20px'}),
-        dbc.Row([
-            # Metrics Table
-            dbc.Col(html.Div([
-                html.H6("Metrics Summary", style={'text-align': 'center'}),
-                dash_table.DataTable(
-                    id='rf-d-metrics-table',
-                    columns=[{'name': col, 'id': col} for col in rf_d_metrics_df.columns],
-                    data=rf_d_metrics_df.to_dict('records'),
-                    style_cell={'textAlign': 'center'},
-                    style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
-                    style_as_list_view=True
-                )
-            ], style={'align-items': 'center', 'justify-content': 'center'}), width=5),
-
-            # ROC Curve
-            dbc.Col(dcc.Graph(
-                id='rf-d-roc-curve',
-                figure=roc_curve_rf(y_test_rf_d, y_pred_proba_rf_d),
-                style={'height': '400px'}
-            ), width=6),
-        ], className="mb-4 justify-content-center", style={'display': 'flex', 'align-items': 'center'}),
-
-        # Confusion Matrix
-        dbc.Row([
-            dbc.Col(html.Div([
-                html.H6("Confusion Matrix", style={'text-align': 'center'}),
-                dash_table.DataTable(
-                    id='rf-d-confusion-matrix',
-                    columns=[
-                        {'name': f'Predicted {cls}', 'id': f'Class {i}'}
-                        for i, cls in enumerate(['Dengue', 'Chikungunya', 'Negative'])  # Limit to three columns
-                    ],
-                    data=[
-                        {f'Class {i}': row[i] if i < len(row) else None for i in range(3)}  # Ensure only 3 columns are passed
-                        for row in rf_d_cm
-                    ],
-                    style_cell={'textAlign': 'center'},
-                    style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
-                    style_as_list_view=True
-                )
-            ]), width=6),
-        ], className="mb-4 justify-content-center", style={'margin-bottom': '100px'}),
 
 
         # QDA Results
         html.H5("Quadratic Discriminant Analysis (QDA) for DEFUNCION", style={'text-align': 'center', 'margin-top': '100px'}),
         dbc.Row([
             # Metrics Table
-            dbc.Col(html.Div([
-                html.H6("Metrics Summary", style={'text-align': 'center'}),
-                dash_table.DataTable(
-                    id='qda-metrics-table',
-                    columns=[{'name': col, 'id': col} for col in qda_metrics_df.columns],
-                    data=qda_metrics_df.to_dict('records'),
-                    style_cell={'textAlign': 'center'},
-                    style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
-                    style_as_list_view=True
-                )
-            ], style={'align-items': 'center', 'justify-content': 'center'}), width=5),
+            dbc.Col([
+                html.Div([
+                    html.H6("Metrics Summary", style={'text-align': 'center'}),
+                    dash_table.DataTable(
+                        id='qda-metrics-table',
+                        columns=[{'name': col, 'id': col} for col in qda_metrics_df.columns],
+                        data=qda_metrics_df.to_dict('records'), # type: ignore
+                        style_cell={'textAlign': 'center'},
+                        style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
+                        style_as_list_view=True
+                    )
+                ], style={'align-items': 'center', 'justify-content': 'center', "margin-bottom": "30px"}),
+                
+                html.Div([
+                    html.H6("Confusion Matrix", style={'text-align': 'center'}),
+                    dash_table.DataTable(
+                        id='qda-confusion-matrix',
+                        columns=[
+                            {'name': 'Predicted Alive', 'id': 'Alive'},
+                            {'name': 'Predicted Deceased', 'id': 'Deceased'}
+                        ],
+                        data=[
+                            {"Alive": qda_cm[0][0], "Deceased": qda_cm[0][1]},
+                            {"Alive": qda_cm[1][0], "Deceased": qda_cm[1][1]}
+                        ],
+                        style_cell={'textAlign': 'center'},
+                        style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
+                        style_as_list_view=True
+                    )
+                ])
+            ], width=4),
 
             # QDA Projection Plot
             dbc.Col(dcc.Graph(
@@ -1974,28 +1750,7 @@ classification_tab = dbc.Tab(
                 figure=qda_dengue_defuncion(),
                 style={'height': '400px'}
             ), width=6),
-        ], className="mb-4 justify-content-center", style={'display': 'flex', 'align-items': 'center'}),
-
-        # Confusion Matrix
-        dbc.Row([
-            dbc.Col(html.Div([
-                html.H6("Confusion Matrix", style={'text-align': 'center'}),
-                dash_table.DataTable(
-                    id='qda-confusion-matrix',
-                    columns=[
-                        {'name': 'Predicted Alive', 'id': 'Alive'},
-                        {'name': 'Predicted Deceased', 'id': 'Deceased'}
-                    ],
-                    data=[
-                        {"Alive": qda_cm[0][0], "Deceased": qda_cm[0][1]},
-                        {"Alive": qda_cm[1][0], "Deceased": qda_cm[1][1]}
-                    ],
-                    style_cell={'textAlign': 'center'},
-                    style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
-                    style_as_list_view=True
-                )
-            ]), width=6),
-        ], className="mb-4 justify-content-center", style={'margin-bottom': '100px'})
+        ], className="mb-4 justify-content-center", style={'display': 'flex', 'align-items': 'center'})
     ]
 )
 
@@ -2061,5 +1816,6 @@ app.layout = dbc.Container(
 
 # Run the app
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8050))
-    app.run_server(debug=True, host='127.0.0.1', port=port)
+    #port = int(os.environ.get("PORT", 8050))
+    #app.run_server(debug=True, host='127.0.0.1')#, port=port) 127.0.0.1
+    app.run(debug=True)
