@@ -631,29 +631,11 @@ def kmeans_dengue_clustering():
         color='Cluster_Color',
         color_discrete_map={'0': '#006EC1', '1': '#009EE5', '2': '#89D1F3'},
         title="K-Means Clustering of Dengue Cases",
+        render_mode='webgl',  # Use WebGL for better performance with large datasets
         labels={'EDAD_ANOS': 'Age (Years)', 'FECHA_SIGN_SINTOMAS': 'Days Since First Symptom', 'Cluster_Color': 'Cluster'},
         template="seaborn"
     )
-
-    # Add cluster labels
-    for cluster in dengue_df['Cluster'].unique():
-        cluster_data = dengue_df[dengue_df['Cluster'] == cluster]
-        mean_x = cluster_data['EDAD_ANOS'].mean()
-        mean_y = cluster_data['FECHA_SIGN_SINTOMAS'].mean()
-        fig.add_annotation(
-            x=mean_x,
-            y=mean_y,
-            text=str(cluster),
-            showarrow=True,
-            arrowhead=2,
-            arrowsize=1,
-            arrowwidth=2,
-            arrowcolor='black',
-            font=dict(color='black', size=12),
-            bgcolor="white",
-            bordercolor="black"
-        )
-        
+    
     # Add annotation explaining variable roles
     fig.add_annotation(
         text=(
@@ -669,7 +651,8 @@ def kmeans_dengue_clustering():
         bgcolor="white",
         bordercolor="black"
     )
-
+    fig.update_traces(hovertemplate=None)    # clears the PX‐generated template
+    fig.update_traces(hoverinfo='skip')  # Skip hover info for cleaner look
     return fig
 
 def hierarchical_clustering_covid():
@@ -867,6 +850,7 @@ def pca_covid():
             'PCA2': 'Principal Component 2',
             'TIPO_PACIENTE_Label': 'Patient Type'
         },
+        render_mode='webgl', 
         template="seaborn",
         color_discrete_map={
             'Ambulatory': '#006EC1',
