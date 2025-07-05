@@ -37,16 +37,6 @@ This section contains the exploratory data analysis functions for the dashboard.
 """
 
 """
-# Load the datasets from SQLite database
-_conn = sqlite3.connect("IMMS_Mexico.sqlite")
-covid_df = pd.read_sql_query("SELECT * FROM Covid", _conn, parse_dates=['FECHA_ACTUALIZACION', 'FECHA_INGRESO', 'FECHA_SINTOMAS', 'FECHA_DEF'])
-febriles_df = pd.read_sql_query("SELECT * FROM Febriles", _conn, parse_dates=['FECHA_ACTUALIZACION', 'FECHA_DIAGNOSTICO'])
-dengue_df = pd.read_sql_query("SELECT * FROM Dengue", _conn, parse_dates=['FECHA_ACTUALIZACION', 'FECHA_SIGN_SINTOMAS'])
-morbilidad_df = pd.read_sql_query("SELECT * FROM Morbilidad", _conn)
-morbilidad_df = morbilidad_df.apply(lambda col: col.str.encode('latin1').str.decode('utf-8') if col.dtype == 'object' else col)
-_conn.close()
-"""
-
 # Function to load a table from the SQLite database in chunks
 def load_table(table_name, parse_dates=None):
     conn = sqlite3.connect("IMMS_Mexico.sqlite")
@@ -62,7 +52,36 @@ febriles_df = load_table("Febriles", parse_dates=['FECHA_ACTUALIZACION','FECHA_D
 dengue_df   = load_table("Dengue", parse_dates=['FECHA_ACTUALIZACION','FECHA_SIGN_SINTOMAS'])
 morbilidad_df = load_table("Morbilidad")
 morbilidad_df = morbilidad_df.apply(lambda col: col.str.encode('latin1').str.decode('utf-8') if col.dtype == 'object' else col)
+"""
 
+# Load the datasets from SQLite database
+_conn = sqlite3.connect("IMMS_Mexico.sqlite")
+covid_df = pd.read_sql_query(
+    """
+    SELECT
+        SEXO, EDAD, ENTIDAD_RES, FECHA_INGRESO, FECHA_SINTOMAS, TIPO_PACIENTE, CLASIFICACION_FINAL, DIABETES, HIPERTENSION, 
+        OBESIDAD, ASMA, EPOC, INMUSUPR, OTRA_COM, CARDIOVASCULAR, RENAL_CRONICA, TABAQUISMO, NEUMONIA, EMBARAZO
+    FROM Covid;
+    """, _conn, parse_dates=['FECHA_ACTUALIZACION', 'FECHA_INGRESO', 'FECHA_SINTOMAS', 'FECHA_DEF'])
+febriles_df = pd.read_sql_query(
+    """
+    SELECT
+        EDAD_ANOS, SEXO, ENTIDAD_RES, VACUNACION, COMPLICACIONES, DEFUNCION, DIAGNOSTICO
+    FROM Febriles;
+    """, _conn, parse_dates=['FECHA_ACTUALIZACION', 'FECHA_DIAGNOSTICO'])
+dengue_df = pd.read_sql_query(
+    """
+    SELECT
+        SEXO, EDAD_ANOS, FECHA_SIGN_SINTOMAS, HEMORRAGICOS, DIABETES, HIPERTENSION, ENFERMEDAD_ULC_PEPTICA, 
+        ENFERMEDAD_RENAL, INMUNOSUPR, CIRROSIS_HEPATICA, EMBARAZO, DEFUNCION, RESULTADO_PCR
+    FROM Dengue;
+    """, _conn, parse_dates=['FECHA_ACTUALIZACION', 'FECHA_SIGN_SINTOMAS'])
+morbilidad_df = pd.read_sql_query(
+    """
+    SELECT sickness, state, value, year FROM Morbilidad;
+    """, _conn)
+morbilidad_df = morbilidad_df.apply(lambda col: col.str.encode('latin1').str.decode('utf-8') if col.dtype == 'object' else col)
+_conn.close()
 
 def covid_age_gender_distribution():
     # Map gender for interpretability
