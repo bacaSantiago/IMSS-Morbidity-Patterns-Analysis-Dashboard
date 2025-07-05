@@ -1,7 +1,7 @@
 
 # IMSS Morbidity Analysis Dashboard
 
-> 🌐 Live Dashboard: [https://topological-analysis-of-airbnb-price.onrender.com/](https://topological-analysis-of-airbnb-price.onrender.com/)
+> 🌐 Live Dashboard: [https://imss-morbidity-patterns-analysis.onrender.com](https://imss-morbidity-patterns-analysis.onrender.com)
 
 ---
 
@@ -123,7 +123,7 @@ Data was collected under sentinel surveillance methods recommended by the WHO, e
 ## Deployment
 
 The dashboard is deployed on [Render](https://render.com/), allowing public access to all visualizations and results via the following link:
-  👉 **[https://topological-analysis-of-airbnb-price.onrender.com/](https://topological-analysis-of-airbnb-price.onrender.com/)**
+  👉 **[https://imss-morbidity-patterns-analysis.onrender.com](https://imss-morbidity-patterns-analysis.onrender.com)**
 
 ---
 
