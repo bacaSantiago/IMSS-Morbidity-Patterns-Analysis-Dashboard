@@ -2,8 +2,6 @@ venv
 *.pyc 
 .env 
 .DS_Store
-Clean_Data/Clean_COVID19MEXICO.csv
-Clean_Data/Clean_COVID19MEXICO2024.csv
 Data_Dicts/diccionario_datos_t2017.xlsx
 geojsons/alcaldias_cdmx.json
 PDFs
