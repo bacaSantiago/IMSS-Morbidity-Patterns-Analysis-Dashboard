@@ -36,24 +36,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 This section contains the exploratory data analysis functions for the dashboard.
 """
 
-# Upload the data
-"""_Note_
-For unzipping the covid_df file you can use the following code:
-```python
-import zipfile
-with zipfile.ZipFile('Clean_Data/Clean_COVID19MEXICO2024.zip', 'r') as zip_ref:
-    zip_ref.extractall('Clean_Data/')
-    
-covid_df = pd.read_csv('Clean_Data/Clean_COVID19MEXICO2024.csv', 
-                       parse_dates=['FECHA_ACTUALIZACION', 'FECHA_INGRESO', 'FECHA_SINTOMAS', 'FECHA_DEF'])
-febriles_df = pd.read_csv('Clean_Data/Clean_Febriles.csv', 
-                          parse_dates=['FECHA_ACTUALIZACION', 'FECHA_DIAGNOSTICO'])
-dengue_df = pd.read_csv('Clean_Data/Clean_Dengue.csv', 
-                        parse_dates=['FECHA_ACTUALIZACION', 'FECHA_SIGN_SINTOMAS'])
-morbilidad_df = pd.read_csv('Clean_Data/Morbilidad.csv', 
-                            encoding='latin1')
 """
-
 # Load the datasets from SQLite database
 _conn = sqlite3.connect("IMMS_Mexico.sqlite")
 covid_df = pd.read_sql_query("SELECT * FROM Covid", _conn, parse_dates=['FECHA_ACTUALIZACION', 'FECHA_INGRESO', 'FECHA_SINTOMAS', 'FECHA_DEF'])
@@ -61,8 +44,25 @@ febriles_df = pd.read_sql_query("SELECT * FROM Febriles", _conn, parse_dates=['F
 dengue_df = pd.read_sql_query("SELECT * FROM Dengue", _conn, parse_dates=['FECHA_ACTUALIZACION', 'FECHA_SIGN_SINTOMAS'])
 morbilidad_df = pd.read_sql_query("SELECT * FROM Morbilidad", _conn)
 morbilidad_df = morbilidad_df.apply(lambda col: col.str.encode('latin1').str.decode('utf-8') if col.dtype == 'object' else col)
-
 _conn.close()
+"""
+
+# Function to load a table from the SQLite database in chunks
+def load_table(table_name, parse_dates=None):
+    conn = sqlite3.connect("IMMS_Mexico.sqlite")
+    chunks = []
+    for chunk in pd.read_sql_query(f"SELECT * FROM {table_name}", conn,
+                                   chunksize=50_000, parse_dates=parse_dates):
+        chunks.append(chunk)
+    conn.close()
+    return pd.concat(chunks, ignore_index=True)
+
+covid_df = load_table("Covid", parse_dates=['FECHA_ACTUALIZACION','FECHA_INGRESO','FECHA_SINTOMAS','FECHA_DEF'])
+febriles_df = load_table("Febriles", parse_dates=['FECHA_ACTUALIZACION','FECHA_DIAGNOSTICO'])
+dengue_df   = load_table("Dengue", parse_dates=['FECHA_ACTUALIZACION','FECHA_SIGN_SINTOMAS'])
+morbilidad_df = load_table("Morbilidad")
+morbilidad_df = morbilidad_df.apply(lambda col: col.str.encode('latin1').str.decode('utf-8') if col.dtype == 'object' else col)
+
 
 def covid_age_gender_distribution():
     # Map gender for interpretability
