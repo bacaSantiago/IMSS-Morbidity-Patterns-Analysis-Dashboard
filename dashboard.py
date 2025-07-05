@@ -1824,6 +1824,7 @@ classification_tab = dbc.Tab(
 # Create the app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.title = "Project: Analysis of Morbidity Patterns and Use of Services in the IMSS"
+server = app.server
 
 # Combine tabs into layout
 app.layout = dbc.Container(
